@@ -1,0 +1,43 @@
+name: Patch V4.1 dashboard counters
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Patch V4.1 dashboard counters'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch dashboard
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          old='<div class="kpi"><small>Risolti / OK</small><b id="ko">0</b></div><div class="kpi"><small>Avanzamento</small>'
+          new='<div class="kpi"><small>Risolti / OK</small><b id="ko">0</b></div><div class="kpi"><small>USO INTERNO rilevati</small><b id="kf">0</b></div><div class="kpi"><small>Avanzamento</small>'
+          if old not in s: raise SystemExit('KPI pattern missing')
+          s=s.replace(old,new,1)
+          old='<section id="p-structures" class="panel"><div class="card"><b>Anagrafica strutture Napoleon</b><p id="structuresInfo">Censimento iniziale in costruzione.</p></div><div class="toolbar">'
+          new='<section id="p-structures" class="panel"><div class="card"><b>Anagrafica strutture Napoleon</b><p id="structuresInfo">Censimento iniziale in costruzione.</p></div><div id="structureCounters" class="kpis" style="margin-bottom:10px"></div><div class="toolbar">'
+          if old not in s: raise SystemExit('Structures pattern missing')
+          s=s.replace(old,new,1)
+          old="$('kp').textContent=p;$('ki').textContent=inc;$('kv').textContent=v;$('kb').textContent=b;$('ko').textContent=o;$('kd').textContent=v+b+o;"
+          new="$('kp').textContent=p;$('ki').textContent=inc;$('kv').textContent=v;$('kb').textContent=b;$('ko').textContent=o;$('kf').textContent=campaign?.internal_files_count||0;$('kd').textContent=v+b+o;"
+          if old not in s: raise SystemExit('Render KPI pattern missing')
+          s=s.replace(old,new,1)
+          old="function renderStructures(){let q=$('strq').value.trim().toLowerCase(),rr=structures.filter(r=>!q||(r.canonical_name+' '+r.destination).toLowerCase().includes(q));$('structuresInfo').textContent=`${structures.length} strutture censite nella base iniziale. Il censimento completo Napoleon verrà ampliato e verificato progressivamente.`;$('structuresBody').innerHTML=rr.map(r=>`<tr><td>${esc(r.destination)}</td><td><b>${esc(r.canonical_name)}</b></td><td>${r.napoleon_active?'ATTIVA':'NON ATTIVA'}</td><td>${esc(r.source)}</td><td>${esc(r.notes)}</td></tr>`).join('')}"
+          new="function renderStructures(){let q=$('strq').value.trim().toLowerCase(),rr=structures.filter(r=>!q||(r.canonical_name+' '+r.destination).toLowerCase().includes(q));const targets={Elba:145,Sardegna:137,Toscana:108,Corsica:78},order=['Elba','Sardegna','Toscana','Corsica'];let counts={};structures.forEach(r=>counts[r.destination]=(counts[r.destination]||0)+1);let expected=Object.values(targets).reduce((a,b)=>a+b,0);$('structuresInfo').textContent=`${structures.length}/${expected} strutture censite. I numeri obiettivo derivano dal Catalogo 2026 pubblicato su napoleonviaggi.it; il censimento nominativo completo è ancora in corso e non viene considerato completo finché non sono state verificate tutte le strutture.`;$('structureCounters').innerHTML=`<div class=\"kpi\"><small>Totale censite</small><b>${structures.length}/${expected}</b></div>`+order.map(d=>`<div class=\"kpi\"><small>${d}</small><b>${counts[d]||0}/${targets[d]}</b></div>`).join('');$('structuresBody').innerHTML=rr.map(r=>`<tr><td>${esc(r.destination)}</td><td><b>${esc(r.canonical_name)}</b></td><td>${r.napoleon_active?'ATTIVA':'NON ATTIVA'}</td><td>${esc(r.source)}</td><td>${esc(r.notes)}</td></tr>`).join('')}"
+          if old not in s: raise SystemExit('Render structures pattern missing')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name "napoleonviaggi-audit-bot"
+          git config user.email "isolaelba@gmail.com"
+          git rm .github/workflows/patch-v411-counters.yml
+          git add index.html
+          git commit -m "Restore file KPI and add structure counters"
+          git push
