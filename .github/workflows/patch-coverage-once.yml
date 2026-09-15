@@ -26,5 +26,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
           git diff --cached --quiet && exit 0
-          git commit -m "Compact and filter USO INTERNO coverage"
+          git commit -m "Add filtered XLSX export to USO INTERNO coverage"
           git push
