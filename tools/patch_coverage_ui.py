@@ -77,5 +77,35 @@ async function exportCoverageXlsx(){
 '''
     s = s.replace('</body>', addon + '</body>', 1)
 
+# Explicitly keep the coverage XLSX export available to every authenticated user.
+visibility_marker = '<!-- COVERAGE_EXPORT_ALL_USERS_V1 -->'
+if visibility_marker not in s:
+    visibility = r'''<!-- COVERAGE_EXPORT_ALL_USERS_V1 -->
+<script>
+(function(){
+  function showCoverageExport(){
+    const b=document.getElementById('covExportXlsx');
+    if(!b)return;
+    b.hidden=false;
+    b.removeAttribute('hidden');
+    b.style.setProperty('display','inline-block','important');
+    b.style.setProperty('visibility','visible','important');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',showCoverageExport);
+  else showCoverageExport();
+  setTimeout(showCoverageExport,250);
+  setTimeout(showCoverageExport,1000);
+})();
+</script>
+'''
+    s = s.replace('</body>', visibility + '</body>', 1)
+
+# Reduce stale HTML on workstations after UI releases.
+if 'http-equiv="Cache-Control"' not in s:
+    cache_meta = '<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">'
+    viewport = '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    if viewport in s:
+        s = s.replace(viewport, viewport + cache_meta, 1)
+
 p.write_text(s, encoding='utf-8')
-print('coverage XLSX export patched')
+print('coverage XLSX export patched for all users')
